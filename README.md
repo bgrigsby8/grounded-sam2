@@ -117,7 +117,7 @@ Response, per object:
 ## Development
 
 ```sh
-python3 -m venv venv && ./venv/bin/pip install -r requirements.txt pytest
+python3 -m venv venv && ./venv/bin/pip install -r requirements.txt pytest pytest-asyncio
 ./venv/bin/python -m pytest tests/                       # full suite (downloads ~1 GB of weights)
 GS2_SKIP_MODEL_TESTS=1 ./venv/bin/python -m pytest tests/  # fast tests only
 ```

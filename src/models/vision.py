@@ -113,7 +113,10 @@ class Vision(VisionService, EasyResource):
     def new(
         cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
-        return super().new(config, dependencies)
+        # EasyResource.new only sets the resource name; apply the config too.
+        service = super().new(config, dependencies)
+        service.reconfigure(config, dependencies)
+        return service
 
     @classmethod
     def validate_config(
@@ -154,10 +157,17 @@ class Vision(VisionService, EasyResource):
     # ------------------------------------------------------------------
     # helpers
 
+    def _require_config(self) -> ServiceConfig:
+        if self._config is None:
+            raise ValueError(
+                f"vision service '{self.name}' has no configuration applied; "
+                "this is a bug in the module (reconfigure was never called)"
+            )
+        return self._config
+
     def _get_pipeline(self) -> gs_pipeline.GroundedSam2Pipeline:
-        assert self._config is not None
         if self._pipeline is None:
-            cfg = self._config
+            cfg = self._require_config()
             self._pipeline = gs_pipeline.GroundedSam2Pipeline(
                 grounding_model=cfg.grounding_model,
                 sam_model=cfg.sam_model,
@@ -171,8 +181,7 @@ class Vision(VisionService, EasyResource):
 
     def _resolve_params(self, extra: Optional[Mapping[str, Any]]) -> dict:
         """Merge config defaults with per-request `extra` overrides."""
-        assert self._config is not None
-        cfg = self._config
+        cfg = self._require_config()
         params = {
             "queries": list(cfg.default_queries),
             "box_threshold": cfg.box_threshold,
@@ -212,12 +221,12 @@ class Vision(VisionService, EasyResource):
         return params
 
     def _require_camera(self, camera_name: str) -> Camera:
-        assert self._config is not None
+        cfg = self._require_config()
         if self._camera is None:
             raise ValueError("service is not configured with a camera")
-        if camera_name and camera_name != self._config.camera_name:
+        if camera_name and camera_name != cfg.camera_name:
             raise ValueError(
-                f"this service is configured for camera '{self._config.camera_name}', "
+                f"this service is configured for camera '{cfg.camera_name}', "
                 f"but was asked about camera '{camera_name}'"
             )
         return self._camera
@@ -226,7 +235,7 @@ class Vision(VisionService, EasyResource):
         self, camera: Camera
     ) -> Tuple[Image.Image, Optional[np.ndarray]]:
         """Fetch a time-consistent color+depth pair via one get_images call."""
-        assert self._config is not None
+        cfg = self._require_config()
         images, _meta = await camera.get_images()
 
         rgb: Optional[Image.Image] = None
@@ -246,18 +255,18 @@ class Vision(VisionService, EasyResource):
 
         if rgb is None:
             raise ValueError(
-                f"camera '{self._config.camera_name}' returned no color image "
+                f"camera '{cfg.camera_name}' returned no color image "
                 "from get_images()"
             )
         return rgb, depth
 
     async def _get_intrinsics(self, camera: Camera) -> Tuple[float, float, float, float]:
-        assert self._config is not None
+        cfg = self._require_config()
         props = await camera.get_properties()
         ip = props.intrinsic_parameters
         if ip is None or ip.focal_x_px == 0 or ip.focal_y_px == 0:
             raise ValueError(
-                f"camera '{self._config.camera_name}' does not report intrinsic "
+                f"camera '{cfg.camera_name}' does not report intrinsic "
                 "parameters (focal lengths); they are required to back-project "
                 "depth to 3D points"
             )
@@ -390,14 +399,14 @@ class Vision(VisionService, EasyResource):
         extra: Optional[Mapping[str, ValueTypes]] = None,
         timeout: Optional[float] = None,
     ) -> List[PointCloudObject]:
-        assert self._config is not None
+        cfg = self._require_config()
         camera = self._require_camera(camera_name)
         params = self._resolve_params(extra)
 
         rgb, depth_mm = await self._get_rgb_and_depth(camera)
         if depth_mm is None:
             raise ValueError(
-                f"camera '{self._config.camera_name}' returned no depth image: "
+                f"camera '{cfg.camera_name}' returned no depth image: "
                 "get_object_point_clouds requires an RGBD camera whose "
                 "get_images() includes an image/vnd.viam.dep depth source"
             )
@@ -417,7 +426,7 @@ class Vision(VisionService, EasyResource):
             segments,
             depth_mm,
             intrinsics,
-            self._config.camera_name,
+            cfg.camera_name,
         )
 
     async def capture_all_from_camera(
@@ -431,7 +440,7 @@ class Vision(VisionService, EasyResource):
         extra: Optional[Mapping[str, ValueTypes]] = None,
         timeout: Optional[float] = None,
     ) -> CaptureAllResult:
-        assert self._config is not None
+        cfg = self._require_config()
         camera = self._require_camera(camera_name)
         result = CaptureAllResult()
 
@@ -448,7 +457,7 @@ class Vision(VisionService, EasyResource):
             # One segmentation pass serves both detections and point clouds.
             if depth_mm is None:
                 raise ValueError(
-                    f"camera '{self._config.camera_name}' returned no depth image: "
+                    f"camera '{cfg.camera_name}' returned no depth image: "
                     "object point clouds require an RGBD camera whose "
                     "get_images() includes an image/vnd.viam.dep depth source"
                 )
@@ -467,7 +476,7 @@ class Vision(VisionService, EasyResource):
                 segments,
                 depth_mm,
                 intrinsics,
-                self._config.camera_name,
+                cfg.camera_name,
             )
             if return_detections:
                 result.detections = [
