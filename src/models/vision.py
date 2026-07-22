@@ -362,15 +362,10 @@ class Vision(VisionService, EasyResource):
             object_point_clouds_supported=True,
         )
 
-    async def get_detections(
-        self,
-        image: ViamImage,
-        *,
-        extra: Optional[Mapping[str, ValueTypes]] = None,
-        timeout: Optional[float] = None,
+    async def _detect_on_pil(
+        self, rgb: Image.Image, extra: Optional[Mapping[str, ValueTypes]]
     ) -> List[Detection]:
         params = self._resolve_params(extra)
-        rgb = viam_to_pil_image(image).convert("RGB")
         detections = await asyncio.to_thread(
             self._get_pipeline().detect,
             rgb,
@@ -381,6 +376,15 @@ class Vision(VisionService, EasyResource):
         )
         return [self._to_detection_proto(d, rgb.width, rgb.height) for d in detections]
 
+    async def get_detections(
+        self,
+        image: ViamImage,
+        *,
+        extra: Optional[Mapping[str, ValueTypes]] = None,
+        timeout: Optional[float] = None,
+    ) -> List[Detection]:
+        return await self._detect_on_pil(viam_to_pil_image(image).convert("RGB"), extra)
+
     async def get_detections_from_camera(
         self,
         camera_name: str,
@@ -389,8 +393,8 @@ class Vision(VisionService, EasyResource):
         timeout: Optional[float] = None,
     ) -> List[Detection]:
         camera = self._require_camera(camera_name)
-        image = await camera.get_image(mime_type=CameraMimeType.JPEG)
-        return await self.get_detections(image, extra=extra, timeout=timeout)
+        rgb, _depth = await self._get_rgb_and_depth(camera)
+        return await self._detect_on_pil(rgb, extra)
 
     async def get_object_point_clouds(
         self,

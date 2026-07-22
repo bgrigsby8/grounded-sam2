@@ -52,9 +52,8 @@ class FakeCamera(Camera):
         self.depth = np.zeros((H, W), dtype=np.uint16)
         self.depth[10:30, 20:40] = 1000  # 20x20 patch at 1m
 
-    async def get_image(self, mime_type="", *, extra=None, timeout=None, **kwargs):
-        return pil_to_viam_image(self.rgb, CameraMimeType.JPEG)
-
+    # NOTE: no get_image — viam-sdk 0.79.2's Camera/CameraClient only has
+    # get_images. Keep this fake's surface identical to the real client.
     async def get_images(self, *, filter_source_names=None, extra=None, timeout=None, **kwargs):
         images = [
             NamedImage(
