@@ -1,0 +1,13 @@
+{
+  "module_name": "grounded-sam2",
+  "visibility": "public",
+  "namespace": "brad-grigsby",
+  "language": "python",
+  "resource_type": "service",
+  "resource_subtype": "vision",
+  "model_name": "vision",
+  "initialize_git": false,
+  "generator_version": "0.1.0",
+  "generated_on": "2026-07-22T22:01:26.523788Z",
+  "module_readme_link": "README.md"
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://dl.viam.dev/module.schema.json",
+  "module_id": "brad-grigsby:grounded-sam2",
+  "visibility": "private",
+  "url": "https://github.com/bgrigsby8/grounded-sam2",
+  "description": "Open-vocabulary segmentation vision service: Grounding DINO detections + SAM 2 masks + depth-back-projected object point clouds for pick and place",
+  "models": [
+    {
+      "api": "rdk:service:vision",
+      "model": "brad-grigsby:grounded-sam2:vision",
+      "markdown_link": "brad-grigsby_grounded-sam2_vision.md",
+      "short_description": "Natural-language object detection, segmentation, and 3D point clouds via Grounding DINO + SAM 2"
+    }
+  ],
+  "markdown_link": "README.md",
+  "entrypoint": "run.sh",
+  "first_run": "",
+  "build": {
+    "build": "./build.sh",
+    "setup": "",
+    "path": "dist/archive.tar.gz",
+    "arch": [
+      "linux/amd64",
+      "linux/arm64",
+      "darwin/arm64"
+    ]
+  }
+}
